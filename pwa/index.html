@@ -1,0 +1,1393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Short Form Builder</title>
+<meta name="description" content="Turns a probationary firefighter's Daily Performance Summary into a filled, signable Short Form Performance Report.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f6f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Short Form">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one column, five numbered stations, each a bordered slab on a paper ground. */
+  :root {
+    --paper: #f6f4f0;
+    --slab: #fffefc;
+    --ink: #1e1b18;
+    --ink-soft: #5f5953;
+    --rule: #d9d3ca;
+    --signal: #a8341f;
+    --signal-soft: #f3e3df;
+    --caution: #8a6212;
+    --caution-soft: #f7edd6;
+    --ok: #2f6042;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "Public Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #16150f;
+      --slab: #1f1d18;
+      --ink: #efe9df;
+      --ink-soft: #a79f94;
+      --rule: #3a362f;
+      --signal: #e88a72;
+      --signal-soft: #3a211b;
+      --caution: #e0b45c;
+      --caution-soft: #342a16;
+      --ok: #7fbf96;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16150f;
+    --slab: #1f1d18;
+    --ink: #efe9df;
+    --ink-soft: #a79f94;
+    --rule: #3a362f;
+    --signal: #e88a72;
+    --signal-soft: #3a211b;
+    --caution: #e0b45c;
+    --caution-soft: #342a16;
+    --ok: #7fbf96;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 56px;
+  }
+  .wrap { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+  header.masthead { display: flex; flex-direction: column; gap: 4px; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+  .eyebrow { font-family: var(--display); text-transform: uppercase; letter-spacing: .12em; font-size: 13px; color: var(--ink-soft); }
+  h1 { font-family: var(--display); font-size: 34px; font-weight: 600; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+  .sub { color: var(--ink-soft); font-size: 13.5px; }
+
+  section.station { background: var(--slab); border: 1px solid var(--rule); border-radius: 3px; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .station > h2 { display: flex; align-items: baseline; gap: 9px; margin: 0; font-family: var(--display); font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .num { font-family: var(--mono); font-size: 12px; color: var(--signal); border: 1px solid var(--signal); border-radius: 2px; padding: 1px 5px; letter-spacing: 0; }
+  .hint { font-size: 13px; color: var(--ink-soft); margin: -4px 0 0; }
+
+  label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); min-width: 0; }
+  input[type="text"], textarea, select {
+    font-family: var(--body); font-size: 15px; color: var(--ink); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 2px; padding: 7px 8px; width: 100%; min-width: 0;
+    text-transform: none; letter-spacing: normal;
+  }
+  input[type="text"].code { font-family: var(--mono); }
+  textarea { resize: vertical; line-height: 1.5; }
+  :is(input, textarea, select, button):focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+
+  button { font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; font-weight: 600;
+    background: var(--ink); color: var(--paper); border: 1px solid var(--ink); border-radius: 2px; padding: 9px 16px; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--ink); }
+  button.go { background: var(--signal); border-color: var(--signal); color: #fff; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  table.ratings { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.ratings th { font-family: var(--display); text-transform: uppercase; letter-spacing: .05em; font-size: 11.5px; color: var(--ink-soft); font-weight: 600; padding: 3px 2px; }
+  table.ratings th.rowlab { text-align: left; }
+  table.ratings td { border-top: 1px solid var(--rule); padding: 5px 2px; text-align: center; }
+  table.ratings td.rowlab { text-align: left; line-height: 1.3; }
+  table.ratings tr.total td { border-top: 2px solid var(--ink); font-weight: 600; }
+  input[type="radio"] { accent-color: var(--signal); width: 17px; height: 17px; }
+
+  .flags { display: flex; flex-direction: column; gap: 5px; font-size: 13.5px; }
+  .flag { border-left: 3px solid var(--caution); background: var(--caution-soft); color: var(--ink); padding: 6px 9px; border-radius: 0 2px 2px 0; }
+  .flag.hard { border-left-color: var(--signal); background: var(--signal-soft); }
+  .flag.ok { border-left-color: var(--ok); background: transparent; color: var(--ink-soft); padding-left: 9px; }
+
+  .dropzone { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; border: 1px dashed var(--rule); border-radius: 2px; padding: 9px 11px; }
+  .dropzone.over { border-color: var(--signal); background: var(--signal-soft); }
+  .pickline { flex-direction: row; align-items: center; gap: 0; }
+  .pickline input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .pickline span { font-family: var(--display); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; font-weight: 600;
+    background: transparent; color: var(--ink); border: 1px solid var(--ink); border-radius: 2px; padding: 7px 13px; cursor: pointer; display: inline-block; }
+  .pickline input[type="file"]:focus-visible + span { outline: 2px solid var(--signal); outline-offset: 1px; }
+  .count { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .count.over { color: var(--signal); }
+  .filename { font-family: var(--mono); font-size: 13px; background: var(--paper); border: 1px dashed var(--rule); padding: 5px 7px; border-radius: 2px; display: inline-block; }
+  .status { font-size: 13.5px; color: var(--ink-soft); }
+  .status.bad { color: var(--signal); }
+  pre.draft { font-family: var(--body); font-size: 14px; white-space: pre-wrap; background: var(--paper); border: 1px solid var(--rule); border-radius: 2px; padding: 10px; margin: 0; overflow-x: auto; }
+  .roster-list { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+  footer.colophon { font-size: 12.5px; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 10px; }
+</style>
+<style>
+  /* The artifact host supplies these; a plain page has to set them itself. */
+  html, body { margin: 0; }
+  :root {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Form 240-081-1A &nbsp;Rev. 4/99</div>
+    <h1>Short Form Builder</h1>
+    <div class="sub">Paste the firefighter's Daily Performance Summary email. Everything runs in this page; nothing is uploaded.</div>
+  </header>
+
+  <section class="station">
+    <h2><span class="num">1</span> Paste the email or open the file</h2>
+    <p class="hint">Paste the body, signature block and all. Or open the attachment: Word (.docx) and plain text are read here in the page.</p>
+    <div class="dropzone" id="drop">
+      <label class="pickline">
+        <input type="file" id="file" accept=".docx,.txt,.md,.rtf,.htm,.html,text/plain">
+        <span>Choose a file</span>
+      </label>
+      <span class="hint" id="fileName">or drag one here</span>
+    </div>
+    <textarea id="src" rows="7" placeholder="TO: CA Alvarez    FROM: FF Alex Rivera E16 RB5C&#10;SUBJECT: Daily Performance Summary    DATE: 09/10/2026&#10;..."></textarea>
+    <div class="row">
+      <button id="parse" class="go">Read it</button>
+      <button id="demo" class="ghost">Load sample</button>
+      <button id="clear" class="ghost">Clear</button>
+    </div>
+  </section>
+
+  <section class="station">
+    <h2><span class="num">2</span> Confirm the header</h2>
+    <div class="grid">
+      <label>Employee name<input type="text" id="f_name" autocomplete="off"></label>
+      <label>Rank<select id="f_rank"><option>FF</option><option>FF/PM</option></select></label>
+      <label>Assignment<input type="text" id="f_assign" class="code" placeholder="RB5C" autocomplete="off" list="assignOptions"><datalist id="assignOptions"></datalist></label>
+      <label>Class title<input type="text" id="f_class" class="code" value="2311"></label>
+      <label>Dates from<input type="text" id="f_from" class="code" placeholder="09/10/26"></label>
+      <label>Dates to<input type="text" id="f_to" class="code" placeholder="09/11/26"></label>
+      <label>Tour<select id="f_tour">
+        <option value="24 hour shift">24 hour shift</option>
+        <option value="full tour">full tour</option>
+        <option value="half tour">half tour</option>
+      </select></label>
+      <label>Supervised (months)<input type="text" id="f_months" class="code" value="&lt;1"></label>
+      <label>Quality of information<select id="f_quality">
+        <option value="ADEQUATE">Adequate (both rows)</option>
+        <option value="LIMITED">Limited (both rows)</option>
+      </select></label>
+      <label>Unit ridden<input type="text" id="f_unit" placeholder="Engine 16"></label>
+      <label>Badge (optional)<input type="text" id="f_badge" class="code" placeholder="1321"></label>
+    </div>
+    <div class="flags" id="flags"></div>
+    <div class="row">
+      <button id="saveRoster" class="ghost">Save to roster</button>
+      <span class="roster-list" id="rosterList"></span>
+    </div>
+    <details id="evalDetails">
+      <summary class="hint" style="cursor:pointer">Your details (evaluator)</summary>
+      <div class="grid" style="margin-top:10px">
+        <label>Your rank<input type="text" id="e_rank" class="code" placeholder="CA" autocomplete="off"></label>
+        <label>Your assignment<input type="text" id="e_assign" class="code" placeholder="RB2C" autocomplete="off"></label>
+        <label>Your name (email sign-off only)<input type="text" id="e_name" placeholder="Lastname" autocomplete="off"></label>
+      </div>
+      <p class="hint">Saved in this browser only, never in the form's evaluator name box, which stays empty for your digital signature.</p>
+    </details>
+  </section>
+
+  <section class="station">
+    <h2><span class="num">3</span> Remarks</h2>
+    <p class="hint">Third person, past tense. The draft is a starting point, not a finished block. Rewrite freely.</p>
+    <label>Narrative<textarea id="f_remarks" rows="9"></textarea></label>
+    <label>Footnote (optional, starts with *)<textarea id="f_note" rows="3" placeholder="*Standard was met after direction. ..."></textarea></label>
+    <div class="row">
+      <button id="redraft" class="ghost">Rebuild draft</button>
+      <span class="count" id="charCount">0 characters</span>
+    </div>
+  </section>
+
+  <section class="station">
+    <h2><span class="num">4</span> Ratings</h2>
+    <p class="hint">Every row defaults to Meets Standard. Anything else needs a written explanation in remarks.</p>
+    <div style="overflow-x:auto"><table class="ratings" id="ratings"></table></div>
+    <div class="flags" id="ratingFlags"></div>
+  </section>
+
+  <section class="station">
+    <h2><span class="num">5</span> Generate</h2>
+    <div class="row">
+      <button id="build" class="go">Build the PDF</button>
+      <span class="filename" id="outName">Rivera_ShortForm_091026.pdf</span>
+    </div>
+    <div class="status" id="buildStatus">Signature fields stay empty and signable. Sign in Acrobat first, then send.</div>
+    <div class="row" id="saveRow" hidden>
+      <button id="save">Save the file</button>
+      <button id="rebuild" class="ghost">Build again</button>
+    </div>
+    <details>
+      <summary class="hint" style="cursor:pointer">Reply email draft</summary>
+      <pre class="draft" id="emailDraft"></pre>
+      <div class="row"><button id="copyEmail" class="ghost">Copy</button><span class="status" id="copyStatus"></span></div>
+    </details>
+  </section>
+
+  <footer class="colophon">
+    Ratings and remarks are yours. This page never grades from the narrative, never fills a signature, and never leaves the ratings editable once the form is built.
+  </footer>
+</div>
+
+<script src="pdf-lib.min.js"></script>
+<script src="jszip.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------- roster
+  var SEED_ROSTER = {};  // filled on the device; never committed
+  function loadRoster() {
+    try {
+      var raw = localStorage.getItem("sf_roster");
+      if (raw) return Object.assign({}, SEED_ROSTER, JSON.parse(raw));
+    } catch (e) {}
+    return Object.assign({}, SEED_ROSTER);
+  }
+  function saveRoster(r) { try { localStorage.setItem("sf_roster", JSON.stringify(r)); } catch (e) {} }
+  var roster = loadRoster();
+
+  // Who is doing the rating. Kept in this browser so the page itself carries
+  // no one's name, which matters once it is hosted at a public URL.
+  var EVAL_DEFAULTS = { rank: "CA", assignment: "", name: "" };  // set on the device under "Your details"
+  function loadEvaluator() {
+    try {
+      var raw = localStorage.getItem("sf_evaluator");
+      if (raw) return Object.assign({}, EVAL_DEFAULTS, JSON.parse(raw));
+    } catch (e) {}
+    return Object.assign({}, EVAL_DEFAULTS);
+  }
+  function saveEvaluator(e) { try { localStorage.setItem("sf_evaluator", JSON.stringify(e)); } catch (err) {} }
+  var evaluator = loadEvaluator();
+
+  // ------------------------------------------------------------ file input
+  // A .docx is a zip; JSZip unpacks it in the page and nothing is uploaded.
+  // Word lays the memo header out as a one-row-per-field table, so a table row
+  // is joined into a single line ("TO: CA Alvarez FROM: FF Sam Delgado") and the
+  // result reads like a pasted email.
+  function decodeEntities(s) {
+    return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(+n); })
+      .replace(/&#x([0-9a-fA-F]+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 16)); })
+      .replace(/&amp;/g, "&");
+  }
+
+  function paraText(xml) {
+    var parts = [], re = /<w:(t|tab|br|cr)(\s[^>]*)?(\/?)>/g, m;
+    while ((m = re.exec(xml))) {
+      if (m[1] === "t") {
+        if (m[3] === "/") continue;
+        var close = xml.indexOf("</w:t>", re.lastIndex);
+        if (close === -1) continue;
+        parts.push(decodeEntities(xml.slice(re.lastIndex, close)));
+        re.lastIndex = close + 6;
+      } else { parts.push(" "); }
+    }
+    return parts.join("").replace(/\s+/g, " ").trim();
+  }
+
+  function blocksToLines(xml) {
+    var lines = [], re = /<w:(tbl|p)(?:\s[^>]*)?>/g, m, cursor = 0;
+    while ((m = re.exec(xml))) {
+      if (m.index < cursor) continue;
+      var tag = m[1], open = "<w:" + tag, close = "</w:" + tag + ">";
+      var depth = 1, i = re.lastIndex;
+      while (depth > 0) {
+        var nextOpen = xml.indexOf(open, i), nextClose = xml.indexOf(close, i);
+        if (nextClose === -1) { nextClose = xml.length; break; }
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          var after = xml.charAt(nextOpen + open.length);
+          if (after === ">" || after === " " || after === "\t" || after === "\n") depth++;
+          i = nextOpen + open.length;
+        } else { depth--; i = nextClose + close.length; }
+      }
+      var block = xml.slice(m.index, i);
+      cursor = i; re.lastIndex = i;
+      if (tag === "p") {
+        lines.push(paraText(block));
+      } else {
+        var rows = block.match(/<w:tr(?:\s[^>]*)?>[\s\S]*?<\/w:tr>/g) || [];
+        rows.forEach(function (row) {
+          var cells = row.match(/<w:tc(?:\s[^>]*)?>[\s\S]*?<\/w:tc>/g) || [];
+          var text = cells.map(function (c) {
+            var ps = c.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [];
+            return ps.map(paraText).filter(Boolean).join(" ");
+          }).filter(Boolean).join(" ");
+          if (text) lines.push(text);
+        });
+      }
+    }
+    return lines;
+  }
+
+  function docxXmlToText(documentXml) {
+    var body = documentXml, start = body.indexOf("<w:body");
+    if (start !== -1) body = body.slice(start);
+    return blocksToLines(body).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  function stripHtml(s) {
+    var doc = new DOMParser().parseFromString(s, "text/html");
+    return (doc.body ? doc.body.innerText || doc.body.textContent : "") || "";
+  }
+
+  function stripRtf(s) {
+    return s.replace(/\\par[d]?/g, "\n").replace(/\{\\\*[\s\S]*?\}/g, "")
+      .replace(/\\'([0-9a-f]{2})/gi, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/\\[a-z]+-?\d*\s?/gi, "").replace(/[{}]/g, "").trim();
+  }
+
+  // Read the bytes, not the extension: the same memo turns up as .docx, as a
+  // .docx that is really markdown, and as plain text.
+  function readSummaryFile(file) {
+    return file.arrayBuffer().then(function (buf) {
+      var head = new Uint8Array(buf.slice(0, 5));
+      var isZip = head[0] === 0x50 && head[1] === 0x4b;
+      var isPdf = head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+      if (isPdf) {
+        throw new Error("That is a PDF. Open it, select all the text and paste it into the box above.");
+      }
+      if (isZip) {
+        if (!window.JSZip) throw new Error("The Word reader did not load. Reload the page, or paste the text instead.");
+        return window.JSZip.loadAsync(buf).then(function (zip) {
+          var entry = zip.file("word/document.xml");
+          if (!entry) throw new Error("That zip is not a Word document.");
+          return entry.async("string").then(docxXmlToText);
+        });
+      }
+      var text = new TextDecoder("utf-8").decode(buf);
+      if (/^\s*\{\\rtf/.test(text)) return stripRtf(text);
+      if (/<\s*(html|body|div|p)\b/i.test(text.slice(0, 2000))) return stripHtml(text);
+      return text;
+    });
+  }
+
+  // ---------------------------------------------------------------- parsing
+  var MONTHS = { january:1, february:2, march:3, april:4, may:5, june:6, july:7,
+                 august:8, september:9, october:10, november:11, december:12 };
+  var RANKS = ["FF/PM", "FF", "ENG", "CA", "CAPT", "BC", "PM", "EMT"];
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function normDate(raw) {
+    if (!raw) return "";
+    var m = raw.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    if (m) return pad(+m[1]) + "/" + pad(+m[2]) + "/" + String(m[3]).slice(-2);
+    var w = raw.match(/([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/);
+    if (w && MONTHS[w[1].toLowerCase()]) {
+      return pad(MONTHS[w[1].toLowerCase()]) + "/" + pad(+w[2]) + "/" + String(w[3]).slice(-2);
+    }
+    return "";
+  }
+
+  function allDates(text) {
+    var out = [];
+    var re = /\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}|[A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}/g;
+    var m;
+    while ((m = re.exec(text))) {
+      var d = normDate(m[0]);
+      if (d && out.indexOf(d) === -1) out.push(d);
+    }
+    return out;
+  }
+
+  // Outlook and Gmail dress the sender line up in ways the roster never sees:
+  // an address in angle brackets, a trailing job title, "Delgado, Sam".
+  function cleanName(s) {
+    var v = String(s || "");
+    v = v.replace(/<[^>]*>/g, " ");                       // <sdelgado@example.gov>
+    v = v.replace(/\S+@\S+/g, " ");                       // a bare address
+    v = v.replace(/\(([^)]*)\)/g, " ");                   // (Fire Department)
+    v = v.replace(/^(Probationary\s+)?Firefighter\s+/i, "");
+    v = v.replace(/\b(Probationary|Firefighter|Paramedic|Engineer|Captain)\b/gi, " ");
+    v = v.replace(/["'“”‘’]/g, " ");
+    // "Delgado, Sam" is the same person as "Sam Delgado".
+    var swap = v.match(/^\s*([A-Za-z.'’-]+)\s*,\s*([A-Za-z.'’-]+(?:\s+[A-Za-z.'’-]+)?)\s*$/);
+    if (swap) v = swap[2] + " " + swap[1];
+    else v = v.replace(/,.*$/, "");                       // drop a trailing title
+    return v.replace(/[^A-Za-z.'’ -]/g, " ").replace(/\s{2,}/g, " ").trim();
+  }
+
+  // Match the roster on the full name, then on the surname, so a middle
+  // initial or a swapped order does not silently lose the assignment.
+  function rosterLookup(name) {
+    var key = String(name || "").toLowerCase().trim();
+    if (!key) return null;
+    if (roster[key]) return { code: roster[key], exact: true };
+    var last = key.split(/\s+/).pop();
+    var hits = Object.keys(roster).filter(function (k) { return k.split(/\s+/).pop() === last; });
+    if (hits.length === 1) return { code: roster[hits[0]], exact: false, matched: hits[0] };
+    return null;
+  }
+
+  function splitRank(s) {
+    var parts = s.trim().split(/\s+/);
+    for (var i = 0; i < RANKS.length; i++) {
+      var r = RANKS[i];
+      if (parts[0] && parts[0].toUpperCase().replace(/\.$/, "") === r) {
+        return { rank: r, rest: parts.slice(1).join(" ") };
+      }
+    }
+    return { rank: "", rest: s.trim() };
+  }
+
+  // A unit code: letters then digits, optionally a shift letter (E16, RB5C, T2B).
+  var CODE = /\b([A-Z]{1,3}\d{1,3}[A-D]?)\b/g;
+  // Apparatus prefixes, used when the unit has to be recovered from prose.
+  var APPARATUS = /^(E|T|TK|L|R|RM|M|A|SQ|WT|HM|USAR|BC)\d/;
+
+  // Text pasted out of Mail arrives in sensible lines; text pulled from a PDF
+  // can arrive one word per line, which breaks every line-anchored pattern
+  // below. Reflow to a single stream, then re-break before real headings.
+  var HEADINGS = /\b(TO|FROM|SUBJECT|DATE|Summary|Training|Sign\s*Offs?|Medical|EMS|Fire\s*\/?\s*Other)\b\s*:/gi;
+  var BARE_HEADINGS = /\b(Target\s+Solutions|Emergency\s+Response|Physical\s+Fitness|San\s+Jose\s+Fire\s+Department)\b/gi;
+  function reflow(text) {
+    var lines = text.split("\n");
+    var filled = lines.filter(function (l) { return l.trim(); });
+    var tiny = filled.filter(function (l) { return l.trim().split(/\s+/).length <= 2; }).length;
+    if (filled.length < 20 || tiny / filled.length < 0.5) return text;
+    var one = text.replace(/\s+/g, " ").trim();
+    one = one.replace(HEADINGS, function (m) { return "\n" + m; });
+    one = one.replace(BARE_HEADINGS, function (m) { return "\n" + m; });
+    one = one.replace(/\s(Probationary\s+Firefighter)/gi, "\n$1");
+    return one;
+  }
+
+  var STOP_WORDS = /\b(SUBJECT|DATE|TO|RE|CC)\s*:/i;
+  var LABEL_ONLY = /^(TO|FROM|SUBJECT|DATE|RE|CC)\s*:?\s*$/i;
+  var SECTION_LABEL = /^(Summary|Training|Target\s+Solutions|Emergency\s+Response|Physical\s+Fitness|Sign\s*Offs?|Medical|EMS|Fire\s*\/?\s*Other|Notes?)\b/i;
+
+  function parseSummary(text) {
+    var d = { flags: [] };
+    var clean = reflow(text.replace(/\r/g, "").replace(/ /g, " "));
+    var lines = clean.split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+
+    // FROM, wherever it sits. Pasted mail puts it at the start of a line; a
+    // Word memo table puts TO and FROM side by side on one reconstructed row
+    // ("TO: CA Alvarez FROM: FF Sam Delgado"), and a label can also stand alone
+    // with its value on the next line. Stop at the next label either way.
+    var from = "";
+    for (var i = 0; i < lines.length; i++) {
+      var m = lines[i].match(/\bFROM\s*:\s*(.*)$/i);
+      if (!m) continue;
+      var v = m[1].replace(/\*+/g, "").trim();
+      if (!v && lines[i + 1] && !LABEL_ONLY.test(lines[i + 1])) v = lines[i + 1].trim();
+      var stop = v.search(STOP_WORDS);
+      if (stop > 0) v = v.slice(0, stop).trim();
+      if (v) { from = v; break; }
+    }
+
+    var codes = [];
+    var namePart = from;
+    if (from) {
+      var found = from.match(CODE) || [];
+      codes = found.slice();
+      namePart = from.replace(CODE, "").replace(/\s{2,}/g, " ").trim();
+    }
+
+    // Sign-off block: "Alex Rivera" / "Probationary Firefighter, RB5C".
+    // A line that merely contains the word "Firefighter" is not a sign-off:
+    // "Sign Offs: 323/457 Firefighter I and II" is a count, and the line above
+    // it is another count, not a name.
+    function looksLikeName(s) {
+      return /^[A-Z][A-Za-z.'’-]+(?:\s+[A-Z][A-Za-z.'’-]+){1,3}$/.test(s.trim());
+    }
+    function isSignOffLine(s) {
+      if (SECTION_LABEL.test(s)) return false;
+      if (/\d/.test(s)) return false;
+      return /probationary|firefighter|fire department/i.test(s);
+    }
+    if (!namePart) {
+      for (var j = lines.length - 1; j >= 0 && j > lines.length - 10; j--) {
+        if (!isSignOffLine(lines[j])) continue;
+        codes = codes.concat(lines[j].match(CODE) || []);
+        // A sign-off is often several lines ("Sam Delgado" / "Probationary
+        // Firefighter" / "San Jose Fire Department"). Walk up past the lines
+        // that are titles rather than names.
+        for (var u = j - 1; u >= 0 && u >= j - 3; u--) {
+          if (!looksLikeName(lines[u])) break;
+          if (cleanName(lines[u])) { namePart = lines[u]; break; }
+          codes = codes.concat(lines[u].match(CODE) || []);
+        }
+        if (namePart) break;
+      }
+    } else {
+      for (var k = lines.length - 1; k >= 0 && k > lines.length - 10; k--) {
+        if (isSignOffLine(lines[k])) codes = codes.concat(lines[k].match(CODE) || []);
+      }
+    }
+
+    var rn = splitRank(cleanName(namePart));
+    d.rank = rn.rank === "FF/PM" ? "FF/PM" : "FF";
+    d.name = cleanName(rn.rest);
+
+    // Assignment vs unit ridden. RB-codes are assignments in this department;
+    // an apparatus code (E16, T2) is the unit worked that shift.
+    var assign = "", unit = "";
+    codes.forEach(function (c) {
+      if (/^RB/i.test(c)) { if (!assign) assign = c.toUpperCase(); }
+      else if (!unit) unit = c.toUpperCase();
+    });
+    // A Word memo names the unit in the narrative ("my shift on E2C") rather
+    // than in the header. Take the first apparatus code from the body, and say
+    // in the flags that it came from the prose.
+    if (!unit) {
+      var bodyCodes = clean.match(CODE) || [];
+      for (var bi = 0; bi < bodyCodes.length; bi++) {
+        var c = bodyCodes[bi].toUpperCase();
+        if (APPARATUS.test(c)) { unit = c; d.unitFromBody = true; break; }
+        if (/^RB/.test(c) && !assign) assign = c;
+      }
+    }
+    var byRoster = rosterLookup(d.name);
+    if (byRoster) {
+      d.assignment = byRoster.code;
+      d.assignSource = "roster";
+      if (!byRoster.exact) {
+        d.flags.push({ kind: "warn", text: "Matched the roster on the surname only (“" +
+          d.name + "” against “" + byRoster.matched + "”). Check the assignment." });
+      }
+    }
+    else if (assign) { d.assignment = assign; d.assignSource = "memo"; }
+    else { d.assignment = ""; d.assignSource = "none"; }
+    d.unitCode = unit;
+    d.unit = unit ? spellUnit(unit) : "";
+
+    // Dates: a stated range wins over a single date.
+    var dates = allDates(clean);
+    d.dateFrom = dates[0] || "";
+    d.dateTo = dates.length > 1 ? dates[1] : dates[0] || "";
+
+    // Counts.
+    var ems = null, fire = null, total = null;
+    lines.forEach(function (l) {
+      var m = l.match(/^([A-Za-z\/ ]{2,20}?)\s*[:\-–]\s*(.+)$/);
+      if (!m) return;
+      var key = m[1].toUpperCase().replace(/[^A-Z\/]/g, "");
+      var val = m[2].trim();
+      var num = val.match(/^(\d+)\s*$/);
+      if (key === "EMERGENCYRESPONSE") { if (num) total = +num[1]; return; }
+      var isEms = /^(EMS|MEDICAL|MEDIC|ALS|BLS)/.test(key);
+      var isFire = /(FIRE|ALARM|RESCUE|HAZMAT|PUBLICASSIST|OTHER|VEG|STRUCTURE|VEHICLE)/.test(key);
+      if (!isEms && !isFire) return;
+      var n;
+      if (num) n = +num[1];
+      else {
+        // "1 Vehicle Fire, Approximately 1 Acre Vegetation Fire" -> 2 incidents
+        n = val.split(/,| and /).filter(function (p) { return p.trim().length > 2; }).length;
+        d.flags.push({ kind: "warn", text: "Counted " + n + " incident" + (n === 1 ? "" : "s") +
+          " from the " + m[1].trim() + " line, which gave no total. Check it." });
+      }
+      if (isEms) ems = (ems || 0) + n; else fire = (fire || 0) + n;
+    });
+    d.ems = ems; d.fire = fire;
+    d.total = total != null ? total : (ems != null || fire != null ? (ems || 0) + (fire || 0) : null);
+
+    // Sections.
+    var tail = [d.name, "San Jose Fire Department", "Probationary Firefighter"].filter(Boolean);
+    function trimTail(v) {
+      if (!v) return v;
+      tail.forEach(function (t) {
+        var re = new RegExp("[\\s,.;]*" + t.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&") + "[\\s,.;]*$", "i");
+        v = v.replace(re, "");
+      });
+      return v.trim();
+    }
+    d.training = trimTail(section(lines, /^Training\b/i));
+    d.targetSolutions = trimTail(section(lines, /^Target\s+Solutions\b/i));
+    d.signOffs = trimTail(section(lines, /^Signs?\s*Offs?\b/i));
+    d.fitness = /physical\s+fitness/i.test(clean);
+
+    var tb = (d.signOffs || "").match(/(\d+)\s*\/\s*(\d+)/);
+    if (tb) {
+      d.tbDone = +tb[1]; d.tbTotal = +tb[2];
+      d.tbPct = d.tbTotal ? Math.round(1000 * d.tbDone / d.tbTotal) / 10 : null;
+      // The memo often states a rounded percentage of its own. Compute, never
+      // copy, and say so when the two disagree.
+      var stated = clean.match(/(\d{1,3}(?:\.\d+)?)\s*%/);
+      if (stated && d.tbPct != null && Math.abs(parseFloat(stated[1]) - d.tbPct) >= 0.05) {
+        d.flags.push({ kind: "warn", text: "The memo states " + stated[1] +
+          "% task book complete; " + d.tbDone + "/" + d.tbTotal + " is " + d.tbPct +
+          "%. The computed figure is on the form." });
+      }
+    }
+
+    d.narrative = clean;
+    return d;
+  }
+
+  function section(lines, re) {
+    for (var i = 0; i < lines.length; i++) {
+      if (re.test(lines[i])) {
+        var v = lines[i].replace(/^[^:]*:\s*/, "").trim();
+        if (v) return v;
+        if (lines[i + 1]) return lines[i + 1];
+      }
+    }
+    return "";
+  }
+
+  var UNIT_WORDS = { E: "Engine", T: "Truck", R: "Rescue", RM: "Rescue Medic", BC: "Battalion", HM: "Haz Mat", USAR: "USAR" };
+  function spellUnit(code) {
+    var m = code.match(/^([A-Z]{1,3})(\d{1,3})/);
+    if (!m) return code;
+    var word = UNIT_WORDS[m[1]];
+    return word ? word + " " + m[2] : code;
+  }
+
+  // ------------------------------------------------------------- composing
+  function composeRemarks(d, ui) {
+    var last = (ui.name || "").trim().split(/\s+/).pop() || "the employee";
+    var rank = ui.rank || "FF";
+    var span = ui.from && ui.to && ui.from !== ui.to ? ui.from + " to " + ui.to : (ui.from || "");
+    var s = [];
+    s.push("This report covers a " + ui.tour + (span ? " from " + span : "") + ".");
+    if (ui.name) s.push(rank + " " + ui.name + " was assigned to " + (ui.unit || "the company") + ".");
+    if (d.training) s.push("Company training covered " + stripEnd(d.training).toLowerCase() + ".");
+    if (d.targetSolutions) s.push(rank + " " + last + " completed the Target Solutions module “" + stripEnd(d.targetSolutions) + ".”");
+    if (d.total != null) {
+      var bits = [];
+      if (d.ems != null) bits.push(d.ems + " EMS");
+      if (d.fire != null) bits.push(d.fire + " fire/other");
+      s.push("The company responded to " + d.total + " incident" + (d.total === 1 ? "" : "s") +
+        (bits.length ? ", " + bits.join(" and ") : "") + ".");
+    }
+    if (d.fitness) s.push("Daily physical fitness was completed.");
+    if (d.tbDone != null) {
+      s.push(rank + " " + last + " has completed " + d.tbDone + " of " + d.tbTotal +
+        " Firefighter I & II Task Book sign-offs (" + d.tbPct + "%), demonstrating continued progress toward task book completion.");
+    }
+    return s.join(" ");
+  }
+
+  function stripEnd(s) { return String(s).replace(/[.;,\s]+$/, ""); }
+
+  function closingSentence(ui) {
+    var last = (ui.name || "").trim().split(/\s+/).pop() || "the employee";
+    return "Overall, " + (ui.rank || "FF") + " " + last + " had a productive " + ui.tour +
+      " and demonstrated continued development in emergency response, training, and company operations.";
+  }
+
+  // ------------------------------------------------------------ PDF filling
+  var TEXT_ANCHORS = {
+    employee_name_p1: [1, 180, 702], class_title_p1: [1, 409, 702], assignment_p1: [1, 549, 702],
+    supervised_years: [1, 396, 677], supervised_months: [1, 495, 677],
+    date_from: [1, 309, 652], date_to: [1, 493, 652],
+    employee_name_p2: [2, 188, 697], class_title_p2: [2, 413, 697], assignment_p2: [2, 548, 697],
+    remarks: [2, 302, 550],
+    evaluator_rank: [2, 386, 434], evaluator_assignment: [2, 530, 434], evaluator_name: [2, 227, 409],
+    employee_rank: [2, 386, 352], employee_assignment: [2, 528, 352], employee_signature_name: [2, 227, 327]
+  };
+  var TOL = 14, PAD = 2, MAX_AUTO = 20, REMARKS_SIZE = 12;
+  var QUALITY_COLUMNS = ["ADEQUATE", "LIMITED", "NONE"];
+  var QUALITY_ROWS = ["routine_duties", "emergencies"];
+  var RATING_COLUMNS = ["A", "M", "I", "U"];
+  var RATING_ROWS = ["1","2","3","4","5","6","7","8","9","10","overall"];
+  var ROW_LABELS = {
+    "1": "Firefighting techniques, principles, practices & procedures",
+    "2": "EMS policies and procedures",
+    "3": "Completes assigned tasks at emergencies and reports back",
+    "4": "Knowledge and use of tools and equipment",
+    "5": "Cooperation and positive attitude as a team member",
+    "6": "Human relations, diversity, tact with peers and supervisors",
+    "7": "Conformance with Department rules, regs, policies & procedures",
+    "8": "Written and oral communication; relations with the public",
+    "9": "Initiative and problem solving",
+    "10": "Fire prevention techniques, principles, practices & procedures",
+    "overall": "Overall evaluation"
+  };
+
+  var FALLBACKS = { "″": '"', "′": "'", "‐": "-", "‑": "-", "‒": "-",
+    "–": "-", "—": "-", "−": "-", "‘": "'", "’": "'",
+    "“": '"', "”": '"', "½": "1/2", " ": " ", " ": " ", " ": " " };
+  function sanitize(s) {
+    var out = String(s);
+    Object.keys(FALLBACKS).forEach(function (k) { out = out.split(k).join(FALLBACKS[k]); });
+    return out.replace(/[^\x20-\x7E\xA0-\xFF\n]/g, "?");
+  }
+
+  function indexWidgets(pdfDoc, PDFName, PDFDict) {
+    var out = [];
+    pdfDoc.getPages().forEach(function (page, pageIndex) {
+      var annots = page.node.Annots();
+      if (!annots) return;
+      for (var k = 0; k < annots.size(); k++) {
+        var dict = annots.lookup(k);
+        if (!dict || !dict.get) continue;
+        var owner = dict;
+        if (!dict.get(PDFName.of("FT"))) {
+          var parent = dict.lookupMaybe(PDFName.of("Parent"), PDFDict);
+          if (parent) owner = parent;
+        }
+        var ft = owner.lookupMaybe(PDFName.of("FT"), PDFName);
+        var rect = dict.lookup(PDFName.of("Rect"));
+        if (!ft || !rect) continue;
+        var n = rect.asArray().map(function (v) { return v.asNumber(); });
+        var x = Math.min(n[0], n[2]), y = Math.min(n[1], n[3]);
+        var w = Math.abs(n[2] - n[0]), h = Math.abs(n[3] - n[1]);
+        out.push({ dict: dict, owner: owner, ft: ft.asString().replace(/^\//, ""),
+          page: pageIndex + 1, x: x, y: y, w: w, h: h, cx: x + w / 2, cy: y + h / 2 });
+      }
+    });
+    return out;
+  }
+
+  function resolveAnchors(widgets) {
+    var resolved = {}, unresolved = [];
+    Object.keys(TEXT_ANCHORS).forEach(function (key) {
+      var a = TEXT_ANCHORS[key];
+      var cands = widgets.filter(function (w) { return w.page === a[0] && w.ft === "Tx"; });
+      if (!cands.length) { unresolved.push(key); return; }
+      var best = null, bestD = Infinity;
+      cands.forEach(function (c) {
+        var dd = Math.abs(c.cx - a[1]) + Math.abs(c.cy - a[2]);
+        if (dd < bestD) { bestD = dd; best = c; }
+      });
+      if (Math.abs(best.cx - a[1]) > TOL || Math.abs(best.cy - a[2]) > TOL) { unresolved.push(key); return; }
+      resolved[key] = best;
+    });
+    return { resolved: resolved, unresolved: unresolved };
+  }
+
+  function buildGrid(widgets) {
+    var boxes = widgets.filter(function (w) { return w.page === 1 && w.ft === "Btn"; });
+    var rows = [];
+    boxes.forEach(function (b) {
+      var row = null;
+      for (var i = 0; i < rows.length; i++) if (Math.abs(rows[i].cy - b.cy) < 8) { row = rows[i]; break; }
+      if (!row) { row = { cy: b.cy, items: [] }; rows.push(row); }
+      row.items.push(b);
+    });
+    rows.sort(function (a, b) { return b.cy - a.cy; });
+    rows.forEach(function (r) { r.items.sort(function (a, b) { return a.cx - b.cx; }); });
+    var quality = rows.filter(function (r) { return r.items.length === 3; });
+    var ratings = rows.filter(function (r) { return r.items.length === 4; });
+    if (quality.length !== 2 || ratings.length !== 11) {
+      throw new Error("Template layout not recognised: " + quality.length + " quality rows and " +
+        ratings.length + " rating rows (expected 2 and 11). Is this Form 240-081-1A Rev. 4/99?");
+    }
+    var grid = { quality: {}, ratings: {} };
+    QUALITY_ROWS.forEach(function (name, i) {
+      grid.quality[name] = {};
+      QUALITY_COLUMNS.forEach(function (c, j) { grid.quality[name][c] = quality[i].items[j]; });
+    });
+    RATING_ROWS.forEach(function (name, i) {
+      grid.ratings[name] = {};
+      RATING_COLUMNS.forEach(function (c, j) { grid.ratings[name][c] = ratings[i].items[j]; });
+    });
+    return grid;
+  }
+
+  function wrapText(text, font, size, maxWidth) {
+    var lines = [];
+    text.split("\n").forEach(function (para) {
+      if (!para.trim()) { lines.push(""); return; }
+      var cur = "";
+      para.split(/\s+/).forEach(function (word) {
+        var trial = cur ? cur + " " + word : word;
+        if (font.widthOfTextAtSize(trial, size) <= maxWidth || !cur) cur = trial;
+        else { lines.push(cur); cur = word; }
+      });
+      lines.push(cur);
+    });
+    return lines;
+  }
+
+  function autoSize(value, font, w, h) {
+    var size = Math.min((h - 2 * PAD) * 0.80, MAX_AUTO);
+    while (size > 5 && font.widthOfTextAtSize(value, size) > w - 2 * PAD) size -= 0.25;
+    return Math.max(size, 5);
+  }
+
+  function hideAndLock(e, PDFName, PDFNumber) {
+    e.dict.set(PDFName.of("F"), PDFNumber.of(2));
+    var ff = e.owner.lookupMaybe(PDFName.of("Ff"), PDFNumber);
+    e.owner.set(PDFName.of("Ff"), PDFNumber.of((ff ? ff.asNumber() : 0) | 1));
+  }
+
+  // Last-resort tick: draw the box and the mark ourselves, so a template whose
+  // appearance streams cannot be reused never produces a silently unticked grid.
+  function drawCheck(page, e, L) {
+    var black = L.rgb(0, 0, 0);
+    page.drawRectangle({ x: e.x + 0.5, y: e.y + 0.5, width: e.w - 1, height: e.h - 1,
+      borderColor: black, borderWidth: 1 });
+    var t = Math.max(1.2, e.h * 0.13);
+    var p1 = { x: e.x + e.w * 0.24, y: e.y + e.h * 0.52 };
+    var p2 = { x: e.x + e.w * 0.43, y: e.y + e.h * 0.27 };
+    var p3 = { x: e.x + e.w * 0.79, y: e.y + e.h * 0.74 };
+    page.drawLine({ start: p1, end: p2, thickness: t, color: black });
+    page.drawLine({ start: p2, end: p3, thickness: t, color: black });
+  }
+
+  function stampCheck(pdfDoc, pages, entry, counter, L) {
+    var ap = entry.dict.lookup(L.PDFName.of("AP"));
+    var normal = ap && ap.lookup(L.PDFName.of("N"));
+    if (!normal || !normal.keys) return false;
+    var ref = null, keys = normal.keys();
+    for (var i = 0; i < keys.length; i++) {
+      if (keys[i].asString() !== "/Off") { ref = normal.get(keys[i]); break; }
+    }
+    if (!ref) return false;
+    var stream = pdfDoc.context.lookup(ref);
+    var bboxArr = stream && stream.dict && stream.dict.lookup(L.PDFName.of("BBox"));
+    if (!bboxArr) return false;
+    var b = bboxArr.asArray().map(function (v) { return v.asNumber(); });
+    var mArr = stream.dict.lookup(L.PDFName.of("Matrix"));
+    var m = mArr ? mArr.asArray().map(function (v) { return v.asNumber(); }) : [1, 0, 0, 1, 0, 0];
+    var corners = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+    var tx = corners.map(function (p) { return m[0] * p[0] + m[2] * p[1] + m[4]; });
+    var ty = corners.map(function (p) { return m[1] * p[0] + m[3] * p[1] + m[5]; });
+    var bw = Math.max.apply(null, tx) - Math.min.apply(null, tx);
+    var bh = Math.max.apply(null, ty) - Math.min.apply(null, ty);
+    if (bw <= 0 || bh <= 0) return false;
+    var sx = entry.w / bw, sy = entry.h / bh;
+    var page = pages[entry.page - 1];
+    var name = L.PDFName.of("FlatChk" + counter);
+    page.node.setXObject(name, ref);
+    page.pushOperators(
+      L.pushGraphicsState(),
+      L.concatTransformationMatrix(sx, 0, 0, sy,
+        entry.x - Math.min.apply(null, tx) * sx,
+        entry.y - Math.min.apply(null, ty) * sy),
+      L.drawObject(name),
+      L.popGraphicsState()
+    );
+    return true;
+  }
+
+  function fillShortForm(templateBytes, config) {
+    var L = window.PDFLib;
+    return L.PDFDocument.load(templateBytes).then(function (pdfDoc) {
+      return pdfDoc.embedFont(L.StandardFonts.Helvetica).then(function (font) {
+        var pages = pdfDoc.getPages();
+        var widgets = indexWidgets(pdfDoc, L.PDFName, L.PDFDict);
+        var r = resolveAnchors(widgets);
+        var grid = buildGrid(widgets);
+        var notes = [];
+        if (r.unresolved.length) notes.push("Could not locate: " + r.unresolved.join(", "));
+
+        var badge = String(config.employee_badge || "").trim().replace(/^#/, "");
+        var sig = config.employee_signature_name;
+        if (sig == null && config.employee_name) {
+          sig = "/s/ " + config.employee_name + (badge ? " #" + badge : "");
+        }
+        var values = {
+          employee_name_p1: config.employee_name, employee_name_p2: config.employee_name,
+          class_title_p1: config.class_title || "2311", class_title_p2: config.class_title || "2311",
+          assignment_p1: config.assignment, assignment_p2: config.assignment,
+          employee_rank: config.employee_rank || "FF", employee_assignment: config.assignment,
+          employee_signature_name: sig,
+          supervised_years: config.supervised_years, supervised_months: config.supervised_months,
+          date_from: config.date_from, date_to: config.date_to, remarks: config.remarks,
+          evaluator_name: config.evaluator_name, evaluator_rank: config.evaluator_rank,
+          evaluator_assignment: config.evaluator_assignment
+        };
+
+        Object.keys(values).forEach(function (key) {
+          var raw = values[key];
+          if (raw == null || raw === "" || !r.resolved[key]) return;
+          var e = r.resolved[key], page = pages[e.page - 1], text = sanitize(raw);
+          var ffObj = e.owner.lookupMaybe(L.PDFName.of("Ff"), L.PDFNumber);
+          var multiline = Boolean((ffObj ? ffObj.asNumber() : 0) & 4096) || key === "remarks";
+          if (multiline) {
+            var size = REMARKS_SIZE, leading = size * 1.22;
+            var lines = wrapText(text, font, size, e.w - 2 * PAD);
+            while (lines.length * leading > e.h - 2 * PAD && size > 5.5) {
+              size -= 0.5; leading = size * 1.22;
+              lines = wrapText(text, font, size, e.w - 2 * PAD);
+            }
+            var y = e.y + e.h - PAD - size;
+            lines.forEach(function (line) {
+              if (line) page.drawText(line, { x: e.x + PAD, y: y, size: size, font: font, color: L.rgb(0, 0, 0) });
+              y -= leading;
+            });
+          } else {
+            var s2 = autoSize(text, font, e.w, e.h);
+            var y2 = e.y + Math.max((e.h - s2) / 2 + s2 * 0.16, PAD);
+            page.drawText(text, { x: e.x + PAD, y: y2, size: s2, font: font, color: L.rgb(0, 0, 0) });
+          }
+          hideAndLock(e, L.PDFName, L.PDFNumber);
+        });
+
+        var stamped = 0, drawn = 0;
+        function tick(e) {
+          var ok = false;
+          try { ok = stampCheck(pdfDoc, pages, e, stamped + drawn, L); } catch (err) { ok = false; }
+          if (ok) stamped++;
+          else { drawCheck(pages[e.page - 1], e, L); drawn++; }
+          hideAndLock(e, L.PDFName, L.PDFNumber);
+        }
+        var q = config.quality_of_information || {};
+        QUALITY_ROWS.forEach(function (row) {
+          var choice = String(q[row] || "ADEQUATE").toUpperCase();
+          if (QUALITY_COLUMNS.indexOf(choice) === -1) return;
+          tick(grid.quality[row][choice]);
+        });
+        var rt = config.ratings || {};
+        RATING_ROWS.forEach(function (row) {
+          var code = String(rt[row] || "M").toUpperCase();
+          if (RATING_COLUMNS.indexOf(code) === -1) return;
+          tick(grid.ratings[row][code]);
+        });
+
+        var locked = 0;
+        widgets.forEach(function (w) {
+          if (w.page === 1 && w.ft === "Btn") {
+            var ff = w.owner.lookupMaybe(L.PDFName.of("Ff"), L.PDFNumber);
+            w.owner.set(L.PDFName.of("Ff"), L.PDFNumber.of((ff ? ff.asNumber() : 0) | 1));
+            locked++;
+          }
+        });
+
+        var sigCount = 0;
+        widgets.forEach(function (w) {
+          if (w.ft !== "Sig") return;
+          w.owner.delete(L.PDFName.of("V"));
+          w.owner.delete(L.PDFName.of("Ff"));
+          w.dict.delete(L.PDFName.of("V"));
+          w.dict.set(L.PDFName.of("F"), L.PDFNumber.of(4));
+          sigCount++;
+        });
+        var acro = pdfDoc.catalog.lookup(L.PDFName.of("AcroForm"));
+        if (acro) acro.set(L.PDFName.of("SigFlags"), L.PDFNumber.of(3));
+
+        return pdfDoc.save({ updateFieldAppearances: false }).then(function (bytes) {
+          return { bytes: bytes, notes: notes, stamped: stamped, drawn: drawn,
+                   ticked: stamped + drawn, locked: locked, signatureFields: sigCount };
+        });
+      });
+    });
+  }
+
+  // ------------------------------------------------------------------- UI
+  var $ = function (id) { return document.getElementById(id); };
+  var parsed = { flags: [] };
+  var builtBytes = null;
+
+  function ratingsTable() {
+    var t = $("ratings");
+    var head = "<tr><th class='rowlab'>Element</th><th>A</th><th>M</th><th>I</th><th>U</th></tr>";
+    var body = RATING_ROWS.map(function (row) {
+      var cls = row === "overall" ? " class='total'" : "";
+      var cells = RATING_COLUMNS.map(function (c) {
+        var checked = c === "M" ? " checked" : "";
+        return "<td><input type='radio' name='rt_" + row + "' value='" + c + "' id='rt_" + row + "_" + c + "'" +
+          checked + " aria-label='Row " + row + " " + c + "'></td>";
+      }).join("");
+      var label = (row === "overall" ? "" : row + ". ") + ROW_LABELS[row];
+      return "<tr" + cls + "><td class='rowlab'>" + label + "</td>" + cells + "</tr>";
+    }).join("");
+    t.innerHTML = head + body;
+    t.addEventListener("change", renderRatingFlags);
+  }
+
+  function currentRatings() {
+    var out = {};
+    RATING_ROWS.forEach(function (row) {
+      var el = document.querySelector("input[name='rt_" + row + "']:checked");
+      out[row] = el ? el.value : "M";
+    });
+    return out;
+  }
+
+  function renderRatingFlags() {
+    var rt = currentRatings();
+    var off = RATING_ROWS.filter(function (r) { return rt[r] !== "M"; });
+    var box = $("ratingFlags");
+    if (!off.length) {
+      box.innerHTML = "<div class='flag ok'>All eleven rows at Meets Standard.</div>";
+      return;
+    }
+    box.innerHTML = off.map(function (r) {
+      return "<div class='flag hard'>Row " + (r === "overall" ? "Overall" : r) + " is " + rt[r] +
+        ". The form requires a written explanation in remarks. Write it yourself; the page will not.</div>";
+    }).join("");
+  }
+
+  function renderFlags() {
+    var box = $("flags");
+    var items = [];
+    if (!$("f_name").value.trim()) items.push({ kind: "hard", text: "No employee name found. Type it in." });
+    if (!$("f_assign").value.trim()) {
+      items.push({ kind: "hard", text: "No permanent assignment. The unit ridden is not the assignment. Enter it, then save to roster." });
+    } else if (parsed.assignSource === "memo") {
+      items.push({ kind: "warn", text: "Assignment " + $("f_assign").value.trim() + " came from the firefighter's own sign-off, not your roster. Confirm it." });
+    }
+    if (!$("f_from").value.trim()) items.push({ kind: "hard", text: "No dates found. Enter the tour dates." });
+    if (parsed.unitCode && $("f_assign").value.trim() &&
+        parsed.unitCode !== $("f_assign").value.trim().toUpperCase()) {
+      items.push({ kind: "warn", text: "Rode " + parsed.unitCode +
+        (parsed.unitFromBody ? " (read out of the narrative, not the header)" : "") +
+        ", assigned " + $("f_assign").value.trim().toUpperCase() + ". The unit ridden goes in remarks only." });
+    }
+    (parsed.flags || []).forEach(function (f) { items.push(f); });
+    if (parsed.tbPct != null) {
+      items.push({ kind: "ok", text: "Task book " + parsed.tbDone + "/" + parsed.tbTotal + " computed as " + parsed.tbPct + "%." });
+    }
+    if (!items.length) items.push({ kind: "ok", text: "Parsed cleanly. Defaults applied." });
+    box.innerHTML = items.map(function (f) {
+      return "<div class='flag " + (f.kind === "hard" ? "hard" : f.kind === "ok" ? "ok" : "") + "'>" + esc(f.text) + "</div>";
+    }).join("");
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function uiState() {
+    return {
+      name: $("f_name").value.trim(),
+      rank: $("f_rank").value,
+      assignment: $("f_assign").value.trim().toUpperCase(),
+      classTitle: $("f_class").value.trim() || "2311",
+      from: $("f_from").value.trim(),
+      to: $("f_to").value.trim() || $("f_from").value.trim(),
+      tour: $("f_tour").value,
+      months: $("f_months").value.trim(),
+      quality: $("f_quality").value,
+      unit: $("f_unit").value.trim(),
+      badge: $("f_badge").value.trim()
+    };
+  }
+
+  function redraft() {
+    var ui = uiState();
+    var body = composeRemarks(parsed, ui);
+    var rt = currentRatings();
+    var allM = RATING_ROWS.every(function (r) { return rt[r] === "M"; });
+    if (allM && !$("f_note").value.trim()) body += " " + closingSentence(ui);
+    $("f_remarks").value = body;
+    updateCount();
+    updateEmail();
+  }
+
+  function remarksBlock() {
+    var note = $("f_note").value.trim();
+    return $("f_remarks").value.trim() + (note ? "\n\n" + note : "");
+  }
+
+  function updateCount() {
+    var n = remarksBlock().length;
+    var el = $("charCount");
+    el.textContent = n + " characters";
+    el.classList.toggle("over", n > 2000);
+    if (n > 2000) el.textContent = n + " characters — past 2,000 the text shrinks too small to read. Attach a continuation page.";
+    updateName();
+  }
+
+  function updateName() {
+    var ui = uiState();
+    var last = (ui.name || "Form").split(/\s+/).pop();
+    var d = (ui.from || "").replace(/\D/g, "");
+    $("outName").textContent = last + "_ShortForm_" + (d || "draft") + ".pdf";
+  }
+
+  function updateEmail() {
+    var ui = uiState();
+    var first = (ui.name || "").split(/\s+/)[0] || "";
+    var rt = currentRatings();
+    var off = RATING_ROWS.filter(function (r) { return rt[r] !== "M"; });
+    var lines = [];
+    lines.push(first + ",");
+    lines.push("");
+    lines.push("Good working with you as well. My completed Short Form for the " +
+      (ui.from && ui.to && ui.from !== ui.to ? ui.from + " to " + ui.to : ui.from) + " shift is attached.");
+    lines.push("");
+    lines.push(off.length
+      ? "Rows marked other than Meets Standard are explained in the remarks. Read them before you sign."
+      : "All eleven elements are marked Meets Standard. Read the remarks before you sign.");
+    lines.push("");
+    lines.push("Review and sign the attached. If you disagree with any of it, check the appropriate box and tell me directly.");
+    lines.push("");
+    lines.push([evaluator.rank, evaluator.name].filter(Boolean).join(" "));
+    if (evaluator.assignment) lines.push(evaluator.assignment);
+    lines.push("San Jose Fire Department");
+    $("emailDraft").textContent = lines.join("\n");
+  }
+
+  function renderRoster() {
+    var keys = Object.keys(roster).sort();
+    $("rosterList").textContent = keys.map(function (k) {
+      return k.replace(/\b\w/g, function (c) { return c.toUpperCase(); }) + " " + roster[k];
+    }).join(" · ");
+    // Offer every assignment the roster knows, so it can be picked rather than typed.
+    var codes = [];
+    keys.forEach(function (k) { if (codes.indexOf(roster[k]) === -1) codes.push(roster[k]); });
+    $("assignOptions").innerHTML = codes.sort().map(function (c) {
+      return "<option value=\"" + esc(c) + "\"></option>";
+    }).join("");
+  }
+
+  function applyParsed(d) {
+    parsed = d;
+    $("f_name").value = d.name || "";
+    $("f_rank").value = d.rank === "FF/PM" ? "FF/PM" : "FF";
+    $("f_assign").value = d.assignment || "";
+    $("f_from").value = d.dateFrom || "";
+    $("f_to").value = d.dateTo || "";
+    $("f_unit").value = d.unit || "";
+    $("f_tour").value = (d.dateFrom && d.dateTo && d.dateFrom !== d.dateTo) ? "24 hour shift" : "half tour";
+    $("f_quality").value = $("f_tour").value === "half tour" ? "LIMITED" : "ADEQUATE";
+    renderFlags();
+    redraft();
+  }
+
+  var SAMPLE = [
+    "TO: CA Alvarez    FROM: FF Sam Delgado E7 RB1A",
+    "SUBJECT: Daily Performance Summary    DATE: 01/06/2026",
+    "",
+    "Summary: This report covers January 6th 2026",
+    "",
+    "I entered Station 7 and made introductions to crew members. I completed my",
+    "rig and equipment checkout and reviewed shift expectations with my company.",
+    "In the afternoon we were dispatched to a car fire. I donned my SCBA, took the",
+    "bumper line and extinguished the fire.",
+    "Later Engine 7 was sent to a vegetation fire of about one acre. I advanced a",
+    "progressive hose lay and knocked down the fire and hot spots.",
+    "",
+    "Medical: 9",
+    "Physical Fitness Completed",
+    "Fire/Other: 2",
+    "Training: Hose deployment and hose streams",
+    "Sign Offs: 112/457 Firefighter I and II",
+    "",
+    "Sam Delgado",
+    "Probationary Firefighter, RB1A",
+    "San Jose Fire Department"
+  ].join("\n");
+
+  // wiring
+  ratingsTable();
+  renderRatingFlags();
+  renderRoster();
+  updateName();
+  updateEmail();
+
+  $("parse").addEventListener("click", function () {
+    var text = $("src").value;
+    if (!text.trim()) { $("flags").innerHTML = "<div class='flag hard'>Nothing pasted yet.</div>"; return; }
+    applyParsed(parseSummary(text));
+  });
+  $("demo").addEventListener("click", function () {
+    $("src").value = SAMPLE; $("fileName").textContent = "or drag one here";
+    applyParsed(parseSummary(SAMPLE));
+  });
+  $("clear").addEventListener("click", function () {
+    $("src").value = ""; $("file").value = ""; $("fileName").textContent = "or drag one here";
+  });
+
+  function takeFile(file) {
+    if (!file) return;
+    $("fileName").textContent = "Reading " + file.name + "…";
+    readSummaryFile(file).then(function (text) {
+      if (!text || !text.trim()) throw new Error("No text in that file.");
+      $("src").value = text;
+      $("fileName").textContent = file.name;
+      applyParsed(parseSummary(text));
+    }).catch(function (err) {
+      $("fileName").textContent = "";
+      $("flags").innerHTML = "<div class='flag hard'>" + esc(err.message || "Could not read that file.") + "</div>";
+    });
+  }
+
+  $("file").addEventListener("change", function (e) { takeFile(e.target.files && e.target.files[0]); });
+  var dz = $("drop");
+  ["dragenter", "dragover"].forEach(function (ev) {
+    dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add("over"); });
+  });
+  ["dragleave", "drop"].forEach(function (ev) {
+    dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove("over"); });
+  });
+  dz.addEventListener("drop", function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    takeFile(f);
+  });
+  $("redraft").addEventListener("click", redraft);
+  $("f_remarks").addEventListener("input", updateCount);
+  $("f_note").addEventListener("input", updateCount);
+  ["f_name", "f_assign", "f_from", "f_to", "f_rank", "f_tour", "f_unit", "f_quality"].forEach(function (id) {
+    $(id).addEventListener("input", function () { renderFlags(); updateName(); updateEmail(); });
+    $(id).addEventListener("change", function () { renderFlags(); updateName(); updateEmail(); });
+  });
+  $("ratings").addEventListener("change", updateEmail);
+  (function wireEvaluator() {
+    var map = { rank: "e_rank", assignment: "e_assign", name: "e_name" };
+    Object.keys(map).forEach(function (k) {
+      var el = $(map[k]);
+      el.value = evaluator[k] || "";
+      el.addEventListener("input", function () {
+        evaluator[k] = el.value.trim();
+        saveEvaluator(evaluator);
+        updateEmail();
+      });
+    });
+    // On a fresh install there is nothing here yet, so open it rather than
+    // leaving the sign-off and the evaluator boxes quietly blank.
+    if (!evaluator.assignment || !evaluator.name) $("evalDetails").open = true;
+  })();
+
+  $("saveRoster").addEventListener("click", function () {
+    var ui = uiState();
+    if (!ui.name || !ui.assignment) return;
+    roster[ui.name.toLowerCase()] = ui.assignment;
+    saveRoster(roster);
+    renderRoster();
+    parsed.assignSource = "roster";
+    renderFlags();
+  });
+
+  function config() {
+    var ui = uiState();
+    return {
+      employee_name: ui.name, employee_rank: ui.rank, class_title: ui.classTitle,
+      assignment: ui.assignment, employee_badge: ui.badge,
+      evaluator_rank: evaluator.rank, evaluator_assignment: evaluator.assignment,
+      evaluator_name: "",   // stays empty; the digital signature carries it
+      supervised_years: "", supervised_months: ui.months,
+      date_from: ui.from, date_to: ui.to,
+      quality_of_information: { routine_duties: ui.quality, emergencies: ui.quality },
+      ratings: currentRatings(),
+      remarks: remarksBlock()
+    };
+  }
+
+  $("build").addEventListener("click", function () {
+    var st = $("buildStatus");
+    st.className = "status";
+    if (!window.PDFLib) { st.textContent = "The PDF library did not load. Reload the page."; st.className = "status bad"; return; }
+    var ui = uiState();
+    if (!ui.name || !ui.assignment || !ui.from) {
+      st.textContent = "Fill in name, assignment and dates first.";
+      st.className = "status bad";
+      return;
+    }
+    st.textContent = "Building…";
+    fetch("short_form_blank.pdf").then(function (r) {
+      if (!r.ok) throw new Error("template " + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      return fillShortForm(buf, config());
+    }).then(function (res) {
+      builtBytes = res.bytes;
+      $("saveRow").hidden = false;
+      var expected = 13;
+      st.textContent = "Built. " + res.ticked + " of " + expected + " boxes ticked" +
+        (res.drawn ? " (" + res.drawn + " drawn directly)" : "") + ", " + res.locked +
+        " page-1 boxes locked, " + res.signatureFields + " signature fields left empty and signable." +
+        (res.notes.length ? " " + res.notes.join(" ") : "");
+      if (res.ticked < expected) { st.className = "status bad"; }
+    }).catch(function (err) {
+      st.className = "status bad";
+      st.textContent = "Could not build: " + err.message;
+    });
+  });
+
+  $("rebuild").addEventListener("click", function () { $("saveRow").hidden = true; $("build").click(); });
+
+  $("save").addEventListener("click", function () {
+    if (!builtBytes) return;
+    var st = $("buildStatus");
+    var name = $("outName").textContent;
+    var blob = new Blob([builtBytes], { type: "application/pdf" });
+    window.__shortFormBlob = blob;
+    if (window.claude && window.claude.use) {
+      window.claude.use("downloads").then(function (dl) {
+        if (!dl) { legacySave(blob, name, st); return; }
+        dl.save({ filename: name, data: blob }).then(function () {
+          st.className = "status"; st.textContent = "Saved " + name + ".";
+        }).catch(function (e) {
+          st.className = "status bad";
+          st.textContent = e && e.code === "declined" ? "Save cancelled." : "Save failed: " + ((e && e.message) || "unknown");
+        });
+      });
+    } else {
+      legacySave(blob, name, st);
+    }
+  });
+
+  function legacySave(blob, name, st) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    st.className = "status"; st.textContent = "Saved " + name + " to your downloads.";
+  }
+
+  $("copyEmail").addEventListener("click", function () {
+    var text = $("emailDraft").textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        $("copyStatus").textContent = "Copied.";
+      }).catch(function () { selectDraft(); });
+    } else { selectDraft(); }
+  });
+  function selectDraft() {
+    var range = document.createRange();
+    range.selectNodeContents($("emailDraft"));
+    var sel = window.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    $("copyStatus").textContent = "Selected — copy with your keyboard.";
+  }
+
+  // Open in a working state rather than an empty shell.
+  $("src").value = SAMPLE;
+  applyParsed(parseSummary(SAMPLE));
+})();
+</script>
+
+<script>
+(function () {
+  "use strict";
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    });
+  }
+
+  // An installed iOS web app often previews a download instead of saving it.
+  // Opening the PDF in a real tab gives the share sheet, and from there Save
+  // to Files or Mail behave normally.
+  var standalone = window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  if (!standalone) return;
+
+  var row = document.getElementById("saveRow");
+  if (!row) return;
+  var open = document.createElement("button");
+  open.className = "ghost";
+  open.type = "button";
+  open.textContent = "Open in a tab";
+  open.addEventListener("click", function () {
+    var src = document.querySelector("#saveRow");
+    var blob = window.__shortFormBlob;
+    if (!blob) return;
+    var url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  });
+  row.appendChild(open);
+})();
+</script>
+</body>
+</html>
